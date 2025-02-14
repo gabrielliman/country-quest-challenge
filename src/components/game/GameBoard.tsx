@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -94,6 +93,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
       style: 'currency',
       currency: 'USD'
     }).format(gdp * 1000000); // Convert to actual value
+
+  };
+
+  const getComparisonColor = (
+    guessedValue: any,
+    targetValue: any,
+    type: 'exact' | 'partial' | 'numeric'
+  ) => {
+    if (type === 'exact') {
+      return guessedValue === targetValue ? 'bg-green-50' : '';
+    } else if (type === 'partial') {
+      if (Array.isArray(guessedValue) && Array.isArray(targetValue)) {
+        const allMatch = guessedValue.length === targetValue.length && 
+          guessedValue.every(val => targetValue.includes(val));
+        const someMatch = guessedValue.some(val => targetValue.includes(val));
+        return allMatch ? 'bg-green-50' : someMatch ? 'bg-yellow-50' : '';
+      }
+    } else if (type === 'numeric') {
+      return guessedValue === targetValue ? 'bg-green-50' : 'bg-yellow-50';
+    }
+    return '';
+  };
+
+  const getNumericComparison = (guessedValue: number, targetValue: number) => {
+    if (guessedValue === targetValue) return null;
+    return guessedValue > targetValue ? '↑' : '↓';
   };
 
   return (
@@ -158,19 +183,33 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
                 <span className="font-semibold">{guess.country.name}</span>
               </div>
               <div className="flex items-center gap-6 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  getComparisonColor(guess.country.continent, targetCountry.continent, 'exact')
+                }`}>
                   <Globe className="w-4 h-4" />
                   <span>{guess.country.continent}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  getComparisonColor(guess.country.population, targetCountry.population, 'numeric')
+                }`}>
                   <Users className="w-4 h-4" />
                   <span>{formatPopulation(guess.country.population)}</span>
+                  <span className="text-xs font-medium">
+                    {getNumericComparison(guess.country.population, targetCountry.population)}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  getComparisonColor(guess.country.gdp, targetCountry.gdp, 'numeric')
+                }`}>
                   <TrendingUp className="w-4 h-4" />
                   <span>{formatGDP(guess.country.gdp)}</span>
+                  <span className="text-xs font-medium">
+                    {getNumericComparison(guess.country.gdp, targetCountry.gdp)}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  getComparisonColor(guess.country.flagColors, targetCountry.flagColors, 'partial')
+                }`}>
                   <Flag className="w-4 h-4" />
                   <div className="flex gap-1">
                     {guess.country.flagColors.map((color, i) => (
