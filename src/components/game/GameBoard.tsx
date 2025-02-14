@@ -1,10 +1,19 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle } from "lucide-react";
+import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import { countries, Country } from "@/data/countries";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface GameBoardProps {
   remainingGuesses: number;
@@ -15,7 +24,7 @@ interface GuessResult {
   isCorrect: boolean;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialGuesses }) => {
   const [guess, setGuess] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<Country[]>([]);
@@ -24,6 +33,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
     const randomIndex = Math.floor(Math.random() * countries.length);
     return countries[randomIndex];
   });
+  const [showGameOverDialog, setShowGameOverDialog] = useState(false);
+  const [remainingGuesses, setRemainingGuesses] = useState(initialGuesses);
+  const [hintUsed, setHintUsed] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,6 +70,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
     setShowSuggestions(false);
   };
 
+  const resetGame = () => {
+    window.location.reload();
+  };
+
+  const showHint = () => {
+    if (remainingGuesses > 3 || hintUsed) return;
+
+    const characteristics = [
+      { name: 'Continent', value: targetCountry.continent },
+      { name: 'Population', value: formatPopulation(targetCountry.population) },
+      { name: 'GDP', value: formatGDP(targetCountry.gdp) },
+      { name: 'Flag Colors', value: targetCountry.flagColors.join(', ') }
+    ];
+
+    const randomHint = characteristics[Math.floor(Math.random() * characteristics.length)];
+    toast.info(`Hint - ${randomHint.name}: ${randomHint.value}`);
+    setHintUsed(true);
+  };
+
   const handleSubmitGuess = () => {
     const guessedCountry = countries.find(
       country => country.name.toLowerCase() === guess.toLowerCase()
@@ -76,9 +107,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
     const isCorrect = guessedCountry.name === targetCountry.name;
     setPreviousGuesses(prev => [...prev, { country: guessedCountry, isCorrect }]);
     setGuess("");
+    setRemainingGuesses(prev => prev - 1);
 
-    if (isCorrect) {
-      toast.success("Congratulations! You found the correct country!");
+    if (isCorrect || remainingGuesses <= 1) {
+      setShowGameOverDialog(true);
     }
   };
 
@@ -92,8 +124,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
       maximumFractionDigits: 1,
       style: 'currency',
       currency: 'USD'
-    }).format(gdp * 1000000); // Convert to actual value
-
+    }).format(gdp * 1000000);
   };
 
   const getComparisonColor = (
@@ -118,18 +149,51 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
 
   const getNumericComparison = (guessedValue: number, targetValue: number) => {
     if (guessedValue === targetValue) return null;
-    return guessedValue > targetValue ? '↑' : '↓';
+    // Inverted arrows: arrow points to where the target value is relative to guess
+    return guessedValue > targetValue ? '↓' : '↑';
   };
 
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto space-y-8 animate-fade-in">
+      <Dialog open={showGameOverDialog} onOpenChange={setShowGameOverDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {previousGuesses[previousGuesses.length - 1]?.isCorrect 
+                ? "Congratulations!" 
+                : "Game Over"}
+            </DialogTitle>
+            <DialogDescription>
+              {previousGuesses[previousGuesses.length - 1]?.isCorrect 
+                ? "You've found the correct country!" 
+                : `The correct country was ${targetCountry.name}`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={resetGame}>New Game</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Card className="w-full p-6 bg-white/50 backdrop-blur-sm border border-gray-100 shadow-sm">
         <div className="flex flex-col space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">Guess the Country</h2>
-            <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">
-              {remainingGuesses - previousGuesses.length} guesses left
-            </span>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={showHint}
+                disabled={remainingGuesses > 3 || hintUsed}
+                className="flex items-center gap-2"
+              >
+                <HelpCircle className="w-4 h-4" />
+                Hint
+              </Button>
+              <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">
+                {remainingGuesses} guesses left
+              </span>
+            </div>
           </div>
           
           <div className="flex gap-4 relative">
