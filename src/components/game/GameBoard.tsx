@@ -3,17 +3,28 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Globe, Flag, Users, TrendingUp } from "lucide-react";
+import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle } from "lucide-react";
 import { countries, Country } from "@/data/countries";
+import { toast } from "sonner";
 
 interface GameBoardProps {
   remainingGuesses: number;
+}
+
+interface GuessResult {
+  country: Country;
+  isCorrect: boolean;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
   const [guess, setGuess] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<Country[]>([]);
+  const [previousGuesses, setPreviousGuesses] = useState<GuessResult[]>([]);
+  const [targetCountry] = useState(() => {
+    const randomIndex = Math.floor(Math.random() * countries.length);
+    return countries[randomIndex];
+  });
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +45,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
     if (value.length > 0) {
       const filtered = countries.filter(country => 
         country.name.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 5); // Show only first 5 matches
+      ).slice(0, 5);
       setSuggestions(filtered);
       setShowSuggestions(true);
     } else {
@@ -54,12 +65,35 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
     );
     
     if (!guessedCountry) {
-      console.log("Invalid country name");
+      toast.error("Please select a valid country from the suggestions");
       return;
     }
 
-    console.log("Submitted guess:", guessedCountry);
+    if (previousGuesses.some(g => g.country.name === guessedCountry.name)) {
+      toast.error("You've already guessed this country!");
+      return;
+    }
+
+    const isCorrect = guessedCountry.name === targetCountry.name;
+    setPreviousGuesses(prev => [...prev, { country: guessedCountry, isCorrect }]);
     setGuess("");
+
+    if (isCorrect) {
+      toast.success("Congratulations! You found the correct country!");
+    }
+  };
+
+  const formatPopulation = (pop: number) => {
+    return new Intl.NumberFormat('en-US', { notation: 'compact' }).format(pop);
+  };
+
+  const formatGDP = (gdp: number) => {
+    return new Intl.NumberFormat('en-US', { 
+      notation: 'compact',
+      maximumFractionDigits: 1,
+      style: 'currency',
+      currency: 'USD'
+    }).format(gdp * 1000000); // Convert to actual value
   };
 
   return (
@@ -69,7 +103,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">Guess the Country</h2>
             <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">
-              {remainingGuesses} guesses left
+              {remainingGuesses - previousGuesses.length} guesses left
             </span>
           </div>
           
@@ -106,46 +140,52 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses }) => {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-        <Card className="p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-3">
-            <Globe className="w-5 h-5 text-gray-600" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Continent</p>
-              <p className="text-lg font-semibold">-</p>
+      <div className="w-full space-y-3">
+        {previousGuesses.map((guess, index) => (
+          <Card 
+            key={index}
+            className={`p-4 transition-colors ${
+              guess.isCorrect ? 'bg-green-50' : 'bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {guess.isCorrect ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-500" />
+                )}
+                <span className="font-semibold">{guess.country.name}</span>
+              </div>
+              <div className="flex items-center gap-6 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  <span>{guess.country.continent}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>{formatPopulation(guess.country.population)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>{formatGDP(guess.country.gdp)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Flag className="w-4 h-4" />
+                  <div className="flex gap-1">
+                    {guess.country.flagColors.map((color, i) => (
+                      <div 
+                        key={i}
+                        className="w-4 h-4 rounded-full border border-gray-200"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-3">
-            <Flag className="w-5 h-5 text-gray-600" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Flag Colors</p>
-              <p className="text-lg font-semibold">-</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-3">
-            <Users className="w-5 h-5 text-gray-600" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">Population</p>
-              <p className="text-lg font-semibold">-</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4 hover:shadow-md transition-shadow">
-          <div className="flex items-center space-x-3">
-            <TrendingUp className="w-5 h-5 text-gray-600" />
-            <div>
-              <p className="text-sm font-medium text-gray-600">GDP</p>
-              <p className="text-lg font-semibold">-</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        ))}
       </div>
     </div>
   );
