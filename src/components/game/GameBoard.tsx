@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle, Map } from "lucide-react";
+import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle, Map, Share2 } from "lucide-react";
 import { countries, Country, getGameModeCountries } from "@/data/countries";
 import { toast } from "sonner";
 import {
@@ -47,6 +47,66 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
   const [selectedHint, setSelectedHint] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
+  const getGameModeLabel = () => {
+    switch (gameMode) {
+      case 'rich':
+        return 'Richest Countries Mode';
+      case 'large':
+        return 'Giant Countries Mode';
+      case 'populous':
+        return 'Population Titans Mode';
+      default:
+        return 'All Countries Mode';
+    }
+  };
+
+  const generateShareText = () => {
+    const modeEmoji = {
+      'rich': '💰',
+      'large': '🗺️',
+      'populous': '👥',
+      'all': '🌍'
+    }[gameMode];
+    
+    const guessCount = 6 - remainingGuesses + 1;
+    const header = `Country Quest ${modeEmoji} ${guessCount}/6\n\n`;
+    
+    const guessResults = previousGuesses.map(guess => {
+      const continentMatch = guess.country.continent === targetCountry.continent ? '🟩' : '🟥';
+      const populationMatch = guess.country.population === targetCountry.population ? '🟩' : 
+                            Math.abs(guess.country.population - targetCountry.population) < targetCountry.population * 0.2 ? '🟨' : '🟥';
+      const gdpMatch = guess.country.gdp === targetCountry.gdp ? '🟩' : 
+                      Math.abs(guess.country.gdp - targetCountry.gdp) < targetCountry.gdp * 0.2 ? '🟨' : '🟥';
+      const sizeMatch = guess.country.size === targetCountry.size ? '🟩' : 
+                       Math.abs(guess.country.size - targetCountry.size) < targetCountry.size * 0.2 ? '🟨' : '🟥';
+      
+      return `${continentMatch}${populationMatch}${gdpMatch}${sizeMatch}`;
+    }).join('\n');
+    
+    return `${header}${guessResults}\n\nPlay at: https://countryquest.com/daily/${gameMode}`;
+  };
+
+  const handleShare = async () => {
+    const shareText = generateShareText();
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: shareText
+        });
+      } catch (err) {
+        copyToClipboard(shareText);
+      }
+    } else {
+      copyToClipboard(shareText);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Results copied to clipboard!");
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
@@ -63,7 +123,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     setGuess(value);
     
     if (value.length > 0) {
-      const filtered = countries.filter(country => 
+      const modeCountries = getGameModeCountries(gameMode);
+      const filtered = modeCountries.filter(country => 
         country.name.toLowerCase().includes(value.toLowerCase())
       ).slice(0, 5);
       setSuggestions(filtered);
@@ -204,12 +265,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                 : `The correct country was ${targetCountry.name}`}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex gap-2">
-            <Button onClick={resetGame}>New Game</Button>
-            <Button variant="outline" onClick={() => navigate('/')}>
-              Change Mode
+          <div className="flex flex-col gap-4">
+            <Button onClick={handleShare} className="flex items-center gap-2">
+              <Share2 className="w-4 h-4" />
+              Share Result
             </Button>
-          </DialogFooter>
+            <DialogFooter className="flex gap-2">
+              <Button onClick={resetGame}>New Game</Button>
+              <Button variant="outline" onClick={() => navigate('/')}>
+                Change Mode
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -264,9 +331,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
       <Card className="w-full p-4 sm:p-6 bg-card backdrop-blur-sm border shadow-sm">
         <div className="flex flex-col space-y-4">
           <div className="flex justify-between items-center flex-wrap gap-4">
-            <h2 className="text-xl font-semibold">Guess the Country</h2>
-            <div className="flex items-center gap-4 ml-auto">
-              <ThemeToggle />
+            <div className="flex flex-col">
+              <h2 className="text-xl font-semibold">Guess the Country</h2>
+              <span className="text-sm text-muted-foreground">{getGameModeLabel()}</span>
+            </div>
+            <div className="flex items-center gap-4">
               {!hintUsed ? (
                 <Button 
                   variant="outline" 
@@ -279,7 +348,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                   Hint
                 </Button>
               ) : (
-                <div className="px-4 py-2 bg-yellow-50 rounded-full text-sm">
+                <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/50 rounded-full text-sm">
                   {selectedHint}
                 </div>
               )}
@@ -341,7 +410,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
               </div>
               <div className={`flex items-center gap-6 text-sm ${isMobile ? 'flex-wrap justify-center' : ''}`}>
                 <div className={`flex items-center gap-2 px-2 py-1 rounded ${
-                  getComparisonColor(guess.country.continent, targetCountry.continent, 'exact')
+                  guess.country.continent === targetCountry.continent 
+                    ? 'bg-green-100 dark:bg-green-900/50' 
+                    : 'bg-red-100 dark:bg-red-900/50'
                 }`}>
                   <Globe className="w-4 h-4" />
                   <span>{guess.country.continent}</span>
