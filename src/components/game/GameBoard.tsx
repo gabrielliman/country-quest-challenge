@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
-import { countries, Country } from "@/data/countries";
+import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle, Map } from "lucide-react";
+import { countries, Country, getGameModeCountries } from "@/data/countries";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -16,9 +16,11 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Sparkle, Sparkles } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from 'react-router-dom';
 
 interface GameBoardProps {
   remainingGuesses: number;
+  gameMode: string;
 }
 
 interface GuessResult {
@@ -26,14 +28,16 @@ interface GuessResult {
   isCorrect: boolean;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialGuesses }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialGuesses, gameMode }) => {
   const [guess, setGuess] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<Country[]>([]);
   const [previousGuesses, setPreviousGuesses] = useState<GuessResult[]>([]);
+  const navigate = useNavigate();
   const [targetCountry] = useState(() => {
-    const randomIndex = Math.floor(Math.random() * countries.length);
-    return countries[randomIndex];
+    const modeCountries = getGameModeCountries(gameMode);
+    const randomIndex = Math.floor(Math.random() * modeCountries.length);
+    return modeCountries[randomIndex];
   });
   const [showGameOverDialog, setShowGameOverDialog] = useState(false);
   const [remainingGuesses, setRemainingGuesses] = useState(initialGuesses);
@@ -86,7 +90,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
       { name: 'Continent', value: targetCountry.continent },
       { name: 'Population', value: formatPopulation(targetCountry.population) },
       { name: 'GDP', value: formatGDP(targetCountry.gdp) },
-      { name: 'Flag Colors', value: targetCountry.flagColors.join(', ') }
+      { name: 'Flag Colors', value: targetCountry.flagColors.join(', ') },
+      { name: 'Size', value: formatSize(targetCountry.size) }
     ];
 
     const randomHint = characteristics[Math.floor(Math.random() * characteristics.length)];
@@ -164,6 +169,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     setHintUsed(true);
   };
 
+  const formatSize = (size: number) => {
+    return new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(size) + ' km²';
+  };
+
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto space-y-8 animate-fade-in">
       <Dialog open={showGameOverDialog} onOpenChange={setShowGameOverDialog}>
@@ -192,8 +204,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                 : `The correct country was ${targetCountry.name}`}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="flex gap-2">
             <Button onClick={resetGame}>New Game</Button>
+            <Button variant="outline" onClick={() => navigate('/')}>
+              Change Mode
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -234,6 +249,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
             >
               <Flag className="mr-2 h-4 w-4" />
               Reveal Flag Colors
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleHintSelection('Size', formatSize(targetCountry.size))}
+            >
+              <Map className="mr-2 h-4 w-4" />
+              Reveal Size
             </Button>
           </div>
         </DialogContent>
@@ -355,6 +377,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                       />
                     ))}
                   </div>
+                </div>
+                <div className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  getComparisonColor(guess.country.size, targetCountry.size, 'numeric')
+                }`}>
+                  <Map className="w-4 h-4" />
+                  <span>{formatSize(guess.country.size)}</span>
+                  <span className="text-xs font-medium">
+                    {getNumericComparison(guess.country.size, targetCountry.size)}
+                  </span>
                 </div>
               </div>
             </div>
