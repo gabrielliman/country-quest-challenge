@@ -1,4 +1,6 @@
 
+import { Country } from '@/data/countries';
+
 export type GameMode = 'all' | 'rich' | 'large' | 'populous';
 
 export interface GameModeInfo {
