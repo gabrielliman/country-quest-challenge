@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Sparkle, Sparkles } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface GameBoardProps {
   remainingGuesses: number;
@@ -37,6 +39,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
   const [remainingGuesses, setRemainingGuesses] = useState(initialGuesses);
   const [hintUsed, setHintUsed] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const [showHintDialog, setShowHintDialog] = useState(false);
+  const [selectedHint, setSelectedHint] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -153,15 +158,33 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     return guessedValue > targetValue ? '↓' : '↑';
   };
 
+  const handleHintSelection = (characteristic: string, value: string) => {
+    setSelectedHint(`${characteristic}: ${value}`);
+    setShowHintDialog(false);
+    setHintUsed(true);
+  };
+
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto space-y-8 animate-fade-in">
       <Dialog open={showGameOverDialog} onOpenChange={setShowGameOverDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {previousGuesses[previousGuesses.length - 1]?.isCorrect && (
+                <>
+                  <Sparkle className="w-5 h-5 text-yellow-500 animate-spin" />
+                  <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
+                </>
+              )}
               {previousGuesses[previousGuesses.length - 1]?.isCorrect 
                 ? "Congratulations!" 
                 : "Game Over"}
+              {previousGuesses[previousGuesses.length - 1]?.isCorrect && (
+                <>
+                  <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
+                  <Sparkle className="w-5 h-5 text-yellow-500 animate-spin" />
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
               {previousGuesses[previousGuesses.length - 1]?.isCorrect 
@@ -175,28 +198,76 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
         </DialogContent>
       </Dialog>
 
-      <Card className="w-full p-6 bg-white/50 backdrop-blur-sm border border-gray-100 shadow-sm">
+      <Dialog open={showHintDialog} onOpenChange={setShowHintDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose a Hint</DialogTitle>
+            <DialogDescription>
+              Select one characteristic to reveal about the secret country
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <Button
+              variant="outline"
+              onClick={() => handleHintSelection('Continent', targetCountry.continent)}
+            >
+              <Globe className="mr-2 h-4 w-4" />
+              Reveal Continent
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleHintSelection('Population', formatPopulation(targetCountry.population))}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Reveal Population
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleHintSelection('GDP', formatGDP(targetCountry.gdp))}
+            >
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Reveal GDP
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleHintSelection('Flag Colors', targetCountry.flagColors.join(', '))}
+            >
+              <Flag className="mr-2 h-4 w-4" />
+              Reveal Flag Colors
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="w-full p-4 sm:p-6 bg-card backdrop-blur-sm border shadow-sm">
         <div className="flex flex-col space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-800">Guess the Country</h2>
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={showHint}
-                disabled={remainingGuesses > 3 || hintUsed}
-                className="flex items-center gap-2"
-              >
-                <HelpCircle className="w-4 h-4" />
-                Hint
-              </Button>
-              <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <h2 className="text-xl font-semibold">Guess the Country</h2>
+            <div className="flex items-center gap-4 ml-auto">
+              <ThemeToggle />
+              {!hintUsed ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowHintDialog(true)}
+                  disabled={remainingGuesses > 3 || hintUsed}
+                  className="flex items-center gap-2"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  Hint
+                </Button>
+              ) : (
+                <div className="px-4 py-2 bg-yellow-50 rounded-full text-sm">
+                  {selectedHint}
+                </div>
+              )}
+              <span className="px-4 py-2 bg-secondary rounded-full text-sm font-medium">
                 {remainingGuesses} guesses left
               </span>
             </div>
           </div>
           
-          <div className="flex gap-4 relative">
+          <div className={`flex ${isMobile ? 'flex-col' : ''} gap-4 relative`}>
             <div className="flex-1 relative">
               <Input
                 type="text"
@@ -208,12 +279,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
               {showSuggestions && suggestions.length > 0 && (
                 <div 
                   ref={suggestionsRef}
-                  className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+                  className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-auto"
                 >
                   {suggestions.map((country) => (
                     <button
                       key={country.name}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                      className="w-full text-left px-4 py-2 hover:bg-accent focus:bg-accent focus:outline-none"
                       onClick={() => handleSuggestionClick(country.name)}
                     >
                       {country.name}
@@ -222,7 +293,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                 </div>
               )}
             </div>
-            <Button onClick={handleSubmitGuess}>
+            <Button onClick={handleSubmitGuess} className={isMobile ? 'w-full' : ''}>
               Guess
             </Button>
           </div>
@@ -234,10 +305,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
           <Card 
             key={index}
             className={`p-4 transition-colors ${
-              guess.isCorrect ? 'bg-green-50' : 'bg-white'
+              guess.isCorrect ? 'bg-green-50 dark:bg-green-950' : 'bg-card'
             }`}
           >
-            <div className="flex items-center justify-between">
+            <div className={`flex items-center ${isMobile ? 'flex-col' : 'justify-between'} gap-4`}>
               <div className="flex items-center gap-2">
                 {guess.isCorrect ? (
                   <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -246,7 +317,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                 )}
                 <span className="font-semibold">{guess.country.name}</span>
               </div>
-              <div className="flex items-center gap-6 text-sm text-gray-600">
+              <div className={`flex items-center gap-6 text-sm ${isMobile ? 'flex-wrap justify-center' : ''}`}>
                 <div className={`flex items-center gap-2 px-2 py-1 rounded ${
                   getComparisonColor(guess.country.continent, targetCountry.continent, 'exact')
                 }`}>
