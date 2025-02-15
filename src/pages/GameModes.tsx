@@ -8,13 +8,13 @@ import { Globe, TrendingUp, Map, Users } from "lucide-react";
 const gameModes = [
   {
     id: 'all',
-    name: 'All Countries',
+    name: 'Global Explorer',
     description: 'Test your knowledge with all countries in the world',
     icon: Globe
   },
   {
     id: 'rich',
-    name: 'Richest Countries',
+    name: 'Top Economies',
     description: 'Challenge yourself with the 50 wealthiest nations',
     icon: TrendingUp
   },

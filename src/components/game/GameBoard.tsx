@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle, Map, Share2 } from "lucide-react";
+import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle, Map, Share2, Twitter, RotateCcw } from "lucide-react";
 import { countries, Country, getGameModeCountries } from "@/data/countries";
 import { toast } from "sonner";
 import {
@@ -46,17 +46,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
   const [showHintDialog, setShowHintDialog] = useState(false);
   const [selectedHint, setSelectedHint] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  const [gameCompleted, setGameCompleted] = useState(false);
 
   const getGameModeLabel = () => {
     switch (gameMode) {
       case 'rich':
-        return 'Richest Countries Mode';
+        return 'Top Economies';
       case 'large':
-        return 'Giant Countries Mode';
+        return 'Giant Countries';
       case 'populous':
-        return 'Population Titans Mode';
+        return 'Population Titans';
       default:
-        return 'All Countries Mode';
+        return 'Global Explorer';
     }
   };
 
@@ -74,16 +75,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     const guessResults = previousGuesses.map(guess => {
       const continentMatch = guess.country.continent === targetCountry.continent ? '🟩' : '🟥';
       const populationMatch = guess.country.population === targetCountry.population ? '🟩' : 
-                            Math.abs(guess.country.population - targetCountry.population) < targetCountry.population * 0.2 ? '🟨' : '🟥';
+                            Math.abs(guess.country.population - targetCountry.population) < targetCountry.population * 0.2 ? 
+                            (guess.country.population > targetCountry.population ? '⬇️' : '⬆️') : '🟥';
       const gdpMatch = guess.country.gdp === targetCountry.gdp ? '🟩' : 
-                      Math.abs(guess.country.gdp - targetCountry.gdp) < targetCountry.gdp * 0.2 ? '🟨' : '🟥';
+                      Math.abs(guess.country.gdp - targetCountry.gdp) < targetCountry.gdp * 0.2 ? 
+                      (guess.country.gdp > targetCountry.gdp ? '⬇️' : '⬆️') : '🟥';
       const sizeMatch = guess.country.size === targetCountry.size ? '🟩' : 
-                       Math.abs(guess.country.size - targetCountry.size) < targetCountry.size * 0.2 ? '🟨' : '🟥';
+                       Math.abs(guess.country.size - targetCountry.size) < targetCountry.size * 0.2 ? 
+                       (guess.country.size > targetCountry.size ? '⬇️' : '⬆️') : '🟥';
       
-      return `${continentMatch}${populationMatch}${gdpMatch}${sizeMatch}`;
+      const flagColorMatch = guess.country.flagColors.some(color => 
+        targetCountry.flagColors.includes(color)) ? '🟨' : '🟥';
+      
+      return `${continentMatch}${populationMatch}${gdpMatch}${sizeMatch}${flagColorMatch}`;
     }).join('\n');
     
-    return `${header}${guessResults}\n\nPlay at: https://countryquest.com/daily/${gameMode}`;
+    return `${header}${guessResults}\n\nPlay at: https://countryquest.com/play/${gameMode}`;
   };
 
   const handleShare = async () => {
@@ -102,9 +109,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Results copied to clipboard!");
+  const handleTwitterShare = () => {
+    const shareText = generateShareText();
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    window.open(twitterUrl, '_blank');
+  };
+
+  const handleGameOver = (isCorrect: boolean) => {
+    setShowGameOverDialog(true);
+    setGameCompleted(true);
   };
 
   useEffect(() => {
@@ -181,7 +194,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     setRemainingGuesses(prev => prev - 1);
 
     if (isCorrect || remainingGuesses <= 1) {
-      setShowGameOverDialog(true);
+      handleGameOver(isCorrect);
     }
   };
 
@@ -237,27 +250,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     }).format(size) + ' km²';
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Results copied to clipboard!");
+  };
+
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto space-y-8 animate-fade-in">
       <Dialog open={showGameOverDialog} onOpenChange={setShowGameOverDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              {previousGuesses[previousGuesses.length - 1]?.isCorrect && (
-                <>
-                  <Sparkle className="w-5 h-5 text-yellow-500 animate-spin" />
-                  <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
-                </>
-              )}
               {previousGuesses[previousGuesses.length - 1]?.isCorrect 
                 ? "Congratulations!" 
                 : "Game Over"}
-              {previousGuesses[previousGuesses.length - 1]?.isCorrect && (
-                <>
-                  <Sparkles className="w-5 h-5 text-yellow-500 animate-pulse" />
-                  <Sparkle className="w-5 h-5 text-yellow-500 animate-spin" />
-                </>
-              )}
             </DialogTitle>
             <DialogDescription>
               {previousGuesses[previousGuesses.length - 1]?.isCorrect 
@@ -266,10 +272,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4">
-            <Button onClick={handleShare} className="flex items-center gap-2">
-              <Share2 className="w-4 h-4" />
-              Share Result
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleShare} className="flex-1 flex items-center gap-2">
+                <Share2 className="w-4 h-4" />
+                Share Result
+              </Button>
+              <Button onClick={handleTwitterShare} variant="outline" className="flex items-center gap-2">
+                <Twitter className="w-4 h-4" />
+                Tweet
+              </Button>
+            </div>
             <DialogFooter className="flex gap-2">
               <Button onClick={resetGame}>New Game</Button>
               <Button variant="outline" onClick={() => navigate('/')}>
@@ -389,6 +401,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
             </Button>
           </div>
         </div>
+        {gameCompleted && (
+          <div className="mt-4 flex justify-center">
+            <Button 
+              onClick={() => setShowGameOverDialog(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Show Results
+            </Button>
+          </div>
+        )}
       </Card>
 
       <div className="w-full space-y-3">
