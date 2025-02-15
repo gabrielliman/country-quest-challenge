@@ -73,19 +73,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     const header = `Country Quest ${modeEmoji} ${guessCount}/6\n\n`;
     
     const guessResults = previousGuesses.map(guess => {
+      // Continent comparison (exact match only)
       const continentMatch = guess.country.continent === targetCountry.continent ? '🟩' : '🟥';
+
+      // Population comparison (arrows for higher/lower, green for exact match)
       const populationMatch = guess.country.population === targetCountry.population ? '🟩' : 
-                            Math.abs(guess.country.population - targetCountry.population) < targetCountry.population * 0.2 ? 
-                            (guess.country.population > targetCountry.population ? '⬇️' : '⬆️') : '🟥';
+        (guess.country.population < targetCountry.population ? '⬆️' : '⬇️');
+
+      // GDP comparison (arrows for higher/lower, green for exact match)
       const gdpMatch = guess.country.gdp === targetCountry.gdp ? '🟩' : 
-                      Math.abs(guess.country.gdp - targetCountry.gdp) < targetCountry.gdp * 0.2 ? 
-                      (guess.country.gdp > targetCountry.gdp ? '⬇️' : '⬆️') : '🟥';
+        (guess.country.gdp < targetCountry.gdp ? '⬆️' : '⬇️');
+
+      // Size comparison (arrows for higher/lower, green for exact match)
       const sizeMatch = guess.country.size === targetCountry.size ? '🟩' : 
-                       Math.abs(guess.country.size - targetCountry.size) < targetCountry.size * 0.2 ? 
-                       (guess.country.size > targetCountry.size ? '⬇️' : '⬆️') : '🟥';
+        (guess.country.size < targetCountry.size ? '⬆️' : '⬇️');
       
-      const flagColorMatch = guess.country.flagColors.some(color => 
-        targetCountry.flagColors.includes(color)) ? '🟨' : '🟥';
+      // Flag colors comparison (red for no match, yellow for partial, green for exact)
+      const guessedColors = guess.country.flagColors;
+      const targetColors = targetCountry.flagColors;
+      const allColorsMatch = guessedColors.length === targetColors.length && 
+        guessedColors.every(color => targetColors.includes(color));
+      const someColorsMatch = guessedColors.some(color => targetColors.includes(color));
+      const flagColorMatch = allColorsMatch ? '🟩' : someColorsMatch ? '🟨' : '🟥';
       
       return `${continentMatch}${populationMatch}${gdpMatch}${sizeMatch}${flagColorMatch}`;
     }).join('\n');
