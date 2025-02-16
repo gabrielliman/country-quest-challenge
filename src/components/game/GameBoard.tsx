@@ -1,9 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle, Map, Share2, Twitter, RotateCcw } from "lucide-react";
+import { Globe, Flag, Users, TrendingUp, CheckCircle2, XCircle, HelpCircle, Map, Share2, Twitter } from "lucide-react";
 import { countries, Country, getGameModeCountries } from "@/data/countries";
 import { toast } from "sonner";
 import {
@@ -42,26 +41,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
   const [showGameOverDialog, setShowGameOverDialog] = useState(false);
   const [remainingGuesses, setRemainingGuesses] = useState(initialGuesses);
   const [hintUsed, setHintUsed] = useState(false);
-  const [unlimitedMode, setUnlimitedMode] = useState(false);
-  const [unlimitedGuessCount, setUnlimitedGuessCount] = useState(0);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const [showHintDialog, setShowHintDialog] = useState(false);
   const [selectedHint, setSelectedHint] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const [gameCompleted, setGameCompleted] = useState(false);
-
-  const getGameModeLabel = () => {
-    switch (gameMode) {
-      case 'rich':
-        return 'Top Economies';
-      case 'large':
-        return 'Giant Countries';
-      case 'populous':
-        return 'Population Titans';
-      default:
-        return 'Global Explorer';
-    }
-  };
 
   const generateShareText = () => {
     const modeEmoji = {
@@ -86,8 +70,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
       const gdpMatch = guess.country.gdp === targetCountry.gdp ? '🟩' : 
         (guess.country.gdp < targetCountry.gdp ? '⬆️' : '⬇️');
 
-      // Size comparison (arrows for higher/lower, green for exact match)
-      const sizeMatch = guess.country.size === targetCountry.size ? '🟩' : 
+      // Area comparison (arrows for higher/lower, green for exact match)
+      const areaMatch = guess.country.size === targetCountry.size ? '🟩' : 
         (guess.country.size < targetCountry.size ? '⬆️' : '⬇️');
       
       // Flag colors comparison (red for no match, yellow for partial, green for exact)
@@ -98,7 +82,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
       const someColorsMatch = guessedColors.some(color => targetColors.includes(color));
       const flagColorMatch = allColorsMatch ? '🟩' : someColorsMatch ? '🟨' : '🟥';
       
-      return `${continentMatch}${populationMatch}${gdpMatch}${sizeMatch}${flagColorMatch}`;
+      return `${continentMatch}${populationMatch}${gdpMatch}${areaMatch}${flagColorMatch}`;
     }).join('\n');
     
     return `${header}${guessResults}\n\nPlay at: https://countryquest.com/play/${gameMode}`;
@@ -132,7 +116,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
   };
 
   const enterUnlimitedMode = () => {
-    setUnlimitedMode(true);
     setShowGameOverDialog(false);
     setHintUsed(false); // Reset hint for unlimited mode
   };
@@ -209,16 +192,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     setPreviousGuesses(prev => [...prev, { country: guessedCountry, isCorrect }]);
     setGuess("");
 
-    if (unlimitedMode) {
-      setUnlimitedGuessCount(prev => prev + 1);
-      if ((unlimitedGuessCount + 1) % 3 === 0) {
-        setHintUsed(false); // Enable hint every 3 guesses
-      }
-    } else {
-      setRemainingGuesses(prev => prev - 1);
-      if (isCorrect || remainingGuesses <= 1) {
-        handleGameOver(isCorrect);
-      }
+    setRemainingGuesses(prev => prev - 1);
+    if (isCorrect || remainingGuesses <= 1) {
+      handleGameOver(isCorrect);
     }
   };
 
@@ -233,38 +209,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
       style: 'currency',
       currency: 'USD'
     }).format(gdp * 1000000);
-  };
-
-  const getComparisonColor = (
-    guessedValue: any,
-    targetValue: any,
-    type: 'exact' | 'partial' | 'numeric'
-  ) => {
-    if (type === 'exact') {
-      return guessedValue === targetValue ? 'bg-green-50' : '';
-    } else if (type === 'partial') {
-      if (Array.isArray(guessedValue) && Array.isArray(targetValue)) {
-        const allMatch = guessedValue.length === targetValue.length && 
-          guessedValue.every(val => targetValue.includes(val));
-        const someMatch = guessedValue.some(val => targetValue.includes(val));
-        return allMatch ? 'bg-green-50' : someMatch ? 'bg-yellow-50' : '';
-      }
-    } else if (type === 'numeric') {
-      return guessedValue === targetValue ? 'bg-green-50' : 'bg-yellow-50';
-    }
-    return '';
-  };
-
-  const getNumericComparison = (guessedValue: number, targetValue: number) => {
-    if (guessedValue === targetValue) return null;
-    // Inverted arrows: arrow points to where the target value is relative to guess
-    return guessedValue > targetValue ? '↓' : '↑';
-  };
-
-  const handleHintSelection = (characteristic: string, value: string) => {
-    setSelectedHint(`${characteristic}: ${value}`);
-    setShowHintDialog(false);
-    setHintUsed(true);
   };
 
   const formatSize = (size: number) => {
@@ -308,9 +252,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
             </div>
             <DialogFooter className="flex gap-2">
               <Button onClick={resetGame}>New Game</Button>
-              <Button onClick={enterUnlimitedMode} variant="outline">
-                Keep Playing
-              </Button>
               <Button variant="outline" onClick={() => navigate('/')}>
                 Change Mode
               </Button>
@@ -375,7 +316,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
               <span className="text-sm text-muted-foreground">{getGameModeLabel()}</span>
             </div>
             <div className="flex items-center gap-4">
-              {(!hintUsed && (remainingGuesses <= 3 || unlimitedMode)) && (
+              {(!hintUsed && (remainingGuesses <= 3)) && (
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -391,11 +332,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                   {selectedHint}
                 </div>
               )}
-              {!unlimitedMode && (
-                <span className="px-4 py-2 bg-secondary rounded-full text-sm font-medium">
-                  {remainingGuesses} guesses left
-                </span>
-              )}
+              <span className="px-4 py-2 bg-secondary rounded-full text-sm font-medium">
+                {remainingGuesses} guesses left
+              </span>
             </div>
           </div>
           
@@ -450,6 +389,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                 <span className="font-semibold">{guess.country.name}</span>
               </div>
               <div className={`flex items-center gap-6 text-sm ${isMobile ? 'flex-wrap justify-center' : ''}`}>
+                {/* Continent */}
                 <div className={`flex items-center gap-2 px-2 py-1 rounded ${
                   guess.country.continent === targetCountry.continent 
                     ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-100' 
@@ -458,6 +398,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                   <Globe className="w-4 h-4" />
                   <span>{guess.country.continent}</span>
                 </div>
+                {/* Population */}
                 <div className={`flex items-center gap-2 px-2 py-1 rounded ${
                   guess.country.population === targetCountry.population
                     ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-100'
@@ -471,6 +412,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                     </span>
                   )}
                 </div>
+                {/* GDP */}
+                <div className={`flex items-center gap-2 px-2 py-1 rounded ${
+                  guess.country.gdp === targetCountry.gdp
+                    ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-100'
+                    : 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-100'
+                }`}>
+                  <TrendingUp className="w-4 h-4" />
+                  <span>{formatGDP(guess.country.gdp)}</span>
+                  {guess.country.gdp !== targetCountry.gdp && (
+                    <span className="text-xs font-medium">
+                      {guess.country.gdp < targetCountry.gdp ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+                {/* Area */}
                 <div className={`flex items-center gap-2 px-2 py-1 rounded ${
                   guess.country.size === targetCountry.size
                     ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-100'
@@ -484,6 +440,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                     </span>
                   )}
                 </div>
+                {/* Flag Colors */}
                 <div className={`flex items-center gap-2 px-2 py-1 rounded ${
                   guess.country.flagColors.length === targetCountry.flagColors.length && 
                   guess.country.flagColors.every(color => targetCountry.flagColors.includes(color))
@@ -502,19 +459,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
                       />
                     ))}
                   </div>
-                </div>
-                <div className={`flex items-center gap-2 px-2 py-1 rounded ${
-                  guess.country.gdp === targetCountry.gdp
-                    ? 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-100'
-                    : 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-100'
-                }`}>
-                  <TrendingUp className="w-4 h-4" />
-                  <span>{formatGDP(guess.country.gdp)}</span>
-                  {guess.country.gdp !== targetCountry.gdp && (
-                    <span className="text-xs font-medium">
-                      {guess.country.gdp < targetCountry.gdp ? '↑' : '↓'}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
