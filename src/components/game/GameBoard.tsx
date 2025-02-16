@@ -223,6 +223,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ remainingGuesses: initialG
     toast.success("Results copied to clipboard!");
   };
 
+  const getGameModeLabel = () => {
+    switch (gameMode) {
+      case 'rich':
+        return 'Wealthiest Countries';
+      case 'large':
+        return 'Largest Countries';
+      case 'populous':
+        return 'Most Populous Countries';
+      default:
+        return 'All Countries';
+    }
+  };
+
+  const handleHintSelection = (type: string, value: string) => {
+    setSelectedHint(`${type}: ${value}`);
+    setHintUsed(true);
+    setShowHintDialog(false);
+    toast.info(`Hint - ${type}: ${value}`);
+  };
+
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto space-y-8 animate-fade-in">
       <Dialog open={showGameOverDialog}>
